@@ -52,7 +52,7 @@ class DataBase:
             self.conn.close()
 
     def is_exist_table(self,table_name):
-        sql_str = "select count(*) from sqlite_master where type = 'table' and name = '?'"
+        sql_str = "select count(*) from sqlite_master where type = 'table' and name = ?"
         self.cursor.execute(sql_str,(table_name,))
         if self.cursor.fetchone()[0] == 0:
             self.error += f"table名エラー:\n{table_name}というテーブルは存在しません。 << DataBase.is_exist_table()\n"
