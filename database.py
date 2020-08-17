@@ -52,10 +52,10 @@ class DataBase:
             self.conn.close()
 
     def is_exist_table(self,table_name):
-        sql_str = "select count(*) from sqlite_master where type = 'table' and name = '{}'".format(table_name)
-        self.cursor.execute(sql_str)
+        sql_str = "select count(*) from sqlite_master where type = 'table' and name = '?'"
+        self.cursor.execute(sql_str,(table_name,))
         if self.cursor.fetchone()[0] == 0:
-            self.error +="table名エラー:\n{}というテーブルは存在しません。 << DataBase.is_exist_table()\n".format(table_name)
+            self.error += f"table名エラー:\n{table_name}というテーブルは存在しません。 << DataBase.is_exist_table()\n"
             return False
         else:
             return True
@@ -72,25 +72,12 @@ class DataBase:
             for c in cols:
                 if c not in columns:
                     is_exist = False
-                    self.error += "列名確認エラー:{}テーブルに{}という列は存在しません。<< DataBase.is_exist_columns()\n".format(table_name,c)
+                    self.error += f"列名確認エラー:{table_name}テーブルに{c}という列は存在しません。<< DataBase.is_exist_columns()\n"
             return is_exist
         except Exception as ex:
             self.error += "列名確認エラー:<< DataBase.is_exist_columns()\n"+str(ex)
             return False
 
-    def connect(self,db_path):
-        if not os.path.exists(db_path):
-            self.error += "接続するデータベース:"+db_path+"は存在しません。<< DataBase.connect()"
-            return None
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        sql_str = "select count(*) from "+self.setting["main_table"]
-        cursor.execute(sql_str)
-        result = cursor.fetchall()
-        self.main_table_data_cnt = result[0][0]
-        cursor.close()
-        return conn
-    
     def get_data_count(self,table_name):
         sql_str = "select count(*) from "+table_name
         self.cursor.execute(sql_str)
