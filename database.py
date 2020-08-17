@@ -303,8 +303,6 @@ class DataBase:
             return False
         return True,old_data  
 
-     #途中
-
     #途中
     def regist(self,table_name,new_data):
         if not self.validate(table_name,self.setting[table_name]["cols"],new_data):
