@@ -182,7 +182,7 @@ class DB:
             self.error += f"create tableエラー:<<DB.create_main_table()\ntable作成に失敗しました。\n{str(ex)}"
             return False
         
-    def create_sub_table():
+    def create_sub_table(self,table_name,col_list,view_name_list,type_list,empty_list,relational_col_list,primary_key,autoincrement=True):
         pass
 
 #check###################################################################################
