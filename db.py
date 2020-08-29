@@ -154,6 +154,10 @@ class DB:
             self.info["main_table"] = table_name
             self.info[table_name] = {}
             self.info[table_name]["create_sql"] = sql_str
+            insert_sql_col_str = ""
+            for col in col_list:
+                insert_sql_col_str += "?,"
+            self.info[table_name]["insert_sql"] = f"insert into {table_name} values({insert_sql_col_str.rstrip(',')})"
             self.info[table_name]["cols"] = col_list
             self.info[table_name]["primary_key"] = primary_key
             self.info[table_name]["autoincrement"] = autoincrement
@@ -241,6 +245,10 @@ class DB:
             self.info["sub_tables"].append(table_name)
             self.info[table_name] = {}
             self.info[table_name]["create_sql"] = sql_str
+            insert_sql_col_str = ""
+            for col in col_list:
+                insert_sql_col_str += "?,"
+            self.info[table_name]["insert_sql"] = f"insert into {table_name} values({insert_sql_col_str.rstrip(',')})"
             self.info[table_name]["cols"] = col_list
             for i,col in enumerate(col_list):
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
@@ -293,6 +301,7 @@ class DB:
         #null_check
         for i,col in enumerate(cols):
             if self.info[table_name][col]["empty"] == "not_null" and (new_data[i] == None or new_data[i] == "") and col != primary_key:
+                pass
 #backup##################################################################################
     def backup(self):
         try:
