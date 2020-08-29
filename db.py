@@ -155,6 +155,8 @@ class DB:
             self.info[table_name] = {}
             self.info[table_name]["create_sql"] = sql_str
             self.info[table_name]["cols"] = col_list
+            self.info[table_name]["primary_key"] = primary_key
+            self.info[table_name]["autoincrement"] = autoincrement
             for i,col in enumerate(col_list):
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(メインテーブル)を作成しました。\n"
@@ -170,6 +172,8 @@ class DB:
                     self.info["relational_tables"].append(relational_table)
                     self.info[relational_table]["create_sql"] = sql_str
                     self.info[relational_table]["cols"] = ["id",relational_table]
+                    self.info[relational_table]["primary_key"] = "id"
+                    self.info[relational_table]["autoincrement"] = True
                     self.info[relational_table]["id"] = {"view_name":"管理番号","type":"integer","empty":"not_null"}
                     self.info[relational_table][relational_table] = {"view_name":view_name_list[col_list.index(relational_table)],"type":"text","empty":"not_null"}
                     self.msg += f"{relational_table}テーブル(サブ・リレーショナルテーブル)を作成しました。\n"
@@ -262,13 +266,15 @@ class DB:
     #途中
     def validate(self,table_name,data):
         if not self.is_exist_table(table_name):
-            self.error += "<<DB.validate()\n"
+            self.error += "データ検証エラー：<<DB.validate()\n"
             return False
         cols = self.info[table_name]["cols"]
         if len(cols) != len(new_data):
-            self.error += f"insertエラー：<<DB.validate()\n新規データ数:{len(new_data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
+            self.error += f"データ検証エラー：<<DB.validate()\n新規データ数:{len(new_data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
             return False
         #type_check
+        primary_key = self.info[table_name]["primary_key"]
+        
         for i,col in enumerate(cols):
             if self.info[table_name][col]["type"] == "integer":
                 try:
