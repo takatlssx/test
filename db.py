@@ -274,8 +274,10 @@ class DB:
             return False
         #type_check
         primary_key = self.info[table_name]["primary_key"]
-        
+        is_autoincrement = self.info[table_name]["autoincrement"]
         for i,col in enumerate(cols):
+            if col == primary_key:
+                pass
             if self.info[table_name][col]["type"] == "integer":
                 try:
                     num = int(new_data[i])
