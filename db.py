@@ -175,6 +175,7 @@ class DB:
                     self.info["sub_tables"].append(relational_table)
                     self.info["relational_tables"].append(relational_table)
                     self.info[relational_table]["create_sql"] = sql_str
+                    self.info[relational_table]["insert_sql"] = f"insert into {table_name} values(?,?)"
                     self.info[relational_table]["cols"] = ["id",relational_table]
                     self.info[relational_table]["primary_key"] = "id"
                     self.info[relational_table]["autoincrement"] = True
@@ -321,10 +322,4 @@ class DB:
         
 #insert##########################################################################################
     def insert(self,table_name,new_data):
-        if not self.is_exist_table(table_name):
-            self.error += "<<DB.insert()"
-            return False
-        cols = self.info[table_name]["cols"]
-        if len(cols) != len(new_data):
-            self.error += f"insertエラー：<<DB.insert()\n新規データ数:{len(new_data)}が規定のデータ数:{len(cols)}と一致しません。\n"
-            return False
+        pass
