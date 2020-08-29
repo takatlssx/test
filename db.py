@@ -60,6 +60,25 @@ class DB:
             self.error +="データベース設定取得エラー:<<DB.get_setting()\nデータベース設定を取得できませんでした。\n"+str(ex)
             return False
 
+    def save_setting(self):
+        #現在のsetting.jsonをバックアップ
+        try:
+            dst = self.info["backup_dir"] + "setting{0:%Y%m%d%H%M%S}.backup".format(datetime.datetime.now())
+            shutil.copyfile(self.setting_path, dst)
+            self.latest_backup_setting_file = dst
+        except Exception as ex:
+            self.error += f"設定保存エラー：<< DataBase.save_setting()\nsetting.jsonをバックアップできませんでした。\n{str(ex)}\n"
+            return False
+        #現在のself.infoをsetting.jsonに書き込み
+        try:
+            setting_str = json.dumps(self.info,ensure_ascii=False,indent=4)
+            with open(self.setting_path,"w",encoding="utf-8") as f:
+                f.write(setting_str)
+            return True
+        except Exception as ex:
+            self.error += f"設定保存エラー：<< DataBase.save_setting()\nsetting.jsonへの設定情報の書き込みに失敗しました。\n{str(ex)}\n"
+            return False
+
 #create##################################################################################
     def create_db(self,db_name):
         try:
@@ -130,26 +149,33 @@ class DB:
             self.error += f"create tableエラー:<<DB.create_main_table()\nプライマリーキー{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
             return False
 
-        col_str = ""
-        for i,col in enumerate(col_list):
-            if col == primary_key:
-                if autoincrement:
-                    col_str += f"{col} {type_list[i]} primary key autoincrement,"
-                else:
-                    col_str += f"{col} {type_list[i]} primary key,"
-            else:
-                col_str += f"{col} {type_list[i]},"
-        
-        sql_str = f"create table {table_name}({col_str.rstrip(',')})"
-        try:
-            #バックアップ
-            if not self.backup():
-                self.error += "<<DB.create_main_table()"
-                return False
+        #バックアップ
+        if not self.backup():
+            self.error += "<<DB.create_main_table()"
+            return False
 
-            #メインテーブル作成
+        #メインテーブル作成
+        try:
+            col_str = ""
+            for i,col in enumerate(col_list):
+                tp = type_list[i]
+                if tp == "date":
+                    tp = "text"
+                if col == primary_key:
+                    if autoincrement:
+                        col_str += f"{col} {tp} primary key autoincrement,"
+                    else:
+                        col_str += f"{col} {tp} primary key,"
+                else:
+                    col_str += f"{col} {tp},"
+            sql_str = f"create table {table_name}({col_str.rstrip(',')})"
             self.cursor.execute(sql_str)
             self.conn.commit()
+        except Exception as ex:
+            self.error += f"create tableエラー:<<DB.create_main_table()\nメインテーブル({table_name})の作成に失敗しました。\n{str(ex)}"
+            return False
+        #メインテーブル設定情報設定
+        try:
             self.info["tables"].append(table_name)
             self.info["main_table"] = table_name
             self.info[table_name] = {}
@@ -164,34 +190,44 @@ class DB:
             for i,col in enumerate(col_list):
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(メインテーブル)を作成しました。\n"
+        except Exception as ex:
+            self.error += f"create tableエラー:<<DB.create_main_table()\nメインテーブル({table_name})の設定情報の設定に失敗しました。\n{str(ex)}"
+            return False
 
-            #リレーショナルテーブル作成
-            if relational_col_list != []:
-                for relational_table in relational_col_list:
-                    sql_str = f"create table {relational_table}(id integer primary key autoincrement,{relational_table} text)"
+        #リレーショナルテーブル作成
+        if relational_col_list != []:
+            for relational_table in relational_col_list:
+                sql_str = f"create table {relational_table}(id integer primary key autoincrement,{relational_table} text)"
+                try:
                     self.cursor.execute(sql_str)
                     self.conn.commit()
+                except Exception as ex:
+                    self.error += f"create tableエラー:<<DB.create_main_table()\nリレーショナルテーブル({relational_table})の作成に失敗しました。\n{str(ex)}"
+                    return False
+                try:
                     self.info["tables"].append(relational_table)
                     self.info["sub_tables"].append(relational_table)
                     self.info["relational_tables"].append(relational_table)
+                    self.info[relational_table] = {}
                     self.info[relational_table]["create_sql"] = sql_str
-                    self.info[relational_table]["insert_sql"] = f"insert into {table_name} values(?,?)"
+                    self.info[relational_table]["insert_sql"] = f"insert into {relational_table} values(?,?)"
                     self.info[relational_table]["cols"] = ["id",relational_table]
                     self.info[relational_table]["primary_key"] = "id"
                     self.info[relational_table]["autoincrement"] = True
                     self.info[relational_table]["id"] = {"view_name":"管理番号","type":"integer","empty":"not_null"}
                     self.info[relational_table][relational_table] = {"view_name":view_name_list[col_list.index(relational_table)],"type":"text","empty":"not_null"}
                     self.msg += f"{relational_table}テーブル(サブ・リレーショナルテーブル)を作成しました。\n"
-            #setting.json保存
-            jsn_str = json.dumps(self.info_all,ensure_ascii=False,indent=4)
-            with open(self.setting_path,"w",encoding="utf-8") as f:
-                f.write(jsn_str)
-            return True
-        except Exception as ex:
-            self.error += f"create tableエラー:<<DB.create_main_table()\ntable作成に失敗しました。\n{str(ex)}"
-            return False
+                except Exception as ex:
+                    self.error += f"create tableエラー:<<DB.create_main_table()\nリレーショナルテーブル({relational_table})の設定情報の設定に失敗しました。\n{str(ex)}"
+                    return False  
+        #設定情報をsetting.jsonに書き込み
+        if not self.save_setting():
+            self.error += f"create tableエラー:<<DB.create_main_table()\n設定情報のsetting.jsonへの書き込みに失敗しました。\n"
+            return False 
         
-    def create_sub_table(self,table_name,col_list,view_name_list,type_list,empty_list,relational_col_list,primary_key,autoincrement=True):
+        return True
+        
+    def create_sub_table(self,table_name,col_list,view_name_list,type_list,empty_list,primary_key,autoincrement=True):
         #すでに存在するテーブル名かチェック
         sql_str = f"select count(*) from sqlite_master where type = 'table' and name = '{table_name}'"
         self.cursor.execute(sql_str)
@@ -222,26 +258,34 @@ class DB:
             self.error += f"create tableエラー:<<DB.create_sub_table()\nプライマリーキー{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
             return False
 
-        col_str = ""
-        for i,col in enumerate(col_list):
-            if col == primary_key:
-                if autoincrement:
-                    col_str += f"{col} {type_list[i]} primary key autoincrement,"
-                else:
-                    col_str += f"{col} {type_list[i]} primary key,"
-            else:
-                col_str += f"{col} {type_list[i]},"
         
-        sql_str = f"create table {table_name}({col_str.rstrip(',')})"
-         try:
-            #バックアップ
-            if not self.backup():
-                self.error += "<<DB.create_main_table()"
-                return False
-
-            #テーブル作成
+        #バックアップ
+        if not self.backup():
+            self.error += "<<DB.create_main_table()"
+            return False
+        #テーブル作成
+        try:
+            col_str = ""
+            for i,col in enumerate(col_list):
+                tp = type_list[i]
+                if tp == "date":
+                    tp = "text"
+                if col == primary_key:
+                    if autoincrement:
+                        col_str += f"{col} {tp} primary key autoincrement,"
+                    else:
+                        col_str += f"{col} {tp} primary key,"
+                else:
+                    col_str += f"{col} {tp},"
+            sql_str = f"create table {table_name}({col_str.rstrip(',')})"
             self.cursor.execute(sql_str)
             self.conn.commit()
+        except Exception as ex:
+            self.error += f"create tableエラー:<<DB.create_sub_table()\nサブテーブル({table_name})の作成に失敗しました。\n{str(ex)}"
+            return False
+
+        #設定情報処理
+        try:
             self.info["tables"].append(table_name)
             self.info["sub_tables"].append(table_name)
             self.info[table_name] = {}
@@ -254,15 +298,16 @@ class DB:
             for i,col in enumerate(col_list):
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(サブテーブル)を作成しました。\n"
-            
-            #setting.json保存
-            jsn_str = json.dumps(self.info_all,ensure_ascii=False,indent=4)
-            with open(self.setting_path,"w",encoding="utf-8") as f:
-                f.write(jsn_str)
-            return True
         except Exception as ex:
-            self.error += f"create tableエラー:<<DB.create_sub_table()\n{table_name}テーブルの作成に失敗しました。\n{str(ex)}"
+            self.error += f"create tableエラー:<<DB.create_sub_table()\n{table_name}テーブルの設定情報の設定に失敗しました。\n{str(ex)}"
             return False
+        #設定情報をsetting.jsonに書き込み
+        if not self.save_setting():
+            self.error += f"create tableエラー:<<DB.create_sub_table()\n設定情報のsetting.jsonへの書き込みに失敗しました。\n"
+            return False 
+
+        return True
+
 #check###################################################################################
     def is_exist_table(self,table_name):
         sql_str = f"select count(*) from sqlite_master where type = 'table' and name = '{table_name}'"
@@ -272,37 +317,53 @@ class DB:
             return False
         else:
             return True
-    #途中
+    
     def validate(self,table_name,data):
+        #テーブル名チェック
         if not self.is_exist_table(table_name):
             self.error += "データ検証エラー：<<DB.validate()\n"
             return False
+        #引数のデータがlist or tuple かチェック
+        if not isinstance(data,tuple) and not isinstance(data,list):
+            self.error += f"データ検証エラー：<<DB.validate()\n新規データはlist型もしくはtuple型データを指定してください。\n"
+            return False
+        #新規データリストのデータ数が正しい数かチェック
         cols = self.info[table_name]["cols"]
-        if len(cols) != len(new_data):
-            self.error += f"データ検証エラー：<<DB.validate()\n新規データ数:{len(new_data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
+        if len(cols) != len(data):
+            self.error += f"データ検証エラー：<<DB.validate()\n新規データ数:{len(data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
             return False
         
-        err = ""
+        err = "データ検証エラー：<<DB.validate()\n"
         #type_check
         primary_key = self.info[table_name]["primary_key"]
         is_autoincrement = self.info[table_name]["autoincrement"]
         for i,col in enumerate(cols):
-            if col == primary_key and is_increment:
-                if new_data[i] != None and not isinstance(new_data[i],int):
+            if col == primary_key and is_autoincrement:
+                if data[i] != None and not isinstance(data[i],int):
                     err += f"typeエラー:プライマリー列{col}はNoneもしくはint型のデータを設定してください。\n"                
             else:
                 if self.info[table_name][col]["type"] == "integer":
-                    if not isinstance(new_data[i],int):
+                    if not isinstance(data[i],int):
                         err += f"typeエラー:列{col}は整数型のデータを設定してください。\n"
                 elif self.info[table_name][col]["type"] == "text":
-                    if not isinstance(new_data[i],str):
+                    if not isinstance(data[i],str):
                         err += f"typeエラー:列{col}は文字列型のデータを設定してください。\n"
                 elif self.info[table_name][col]["type"] == "date":
-                    pass
+                    try:
+                        num = datetime.datetime.strptime(data[i],"%Y-%m-%d")
+                    except:
+                        err += f"typeエラー:列{col}は有効な日付型(yyyy-mm-dd)のデータを設定してください。\n"
         #null_check
         for i,col in enumerate(cols):
-            if self.info[table_name][col]["empty"] == "not_null" and (new_data[i] == None or new_data[i] == "") and col != primary_key:
-                pass
+            if self.info[table_name][col]["empty"] == "not_null" and (data[i] == None or data[i] == "") and col != primary_key:
+                err += f"nullエラー:列{col}はnullは禁止です。\n"
+        
+        if err != "データ検証エラー：<<DB.validate()\n":
+            self.error += err
+            return False
+        else:
+            return True
+
 #backup##################################################################################
     def backup(self):
         try:
@@ -322,4 +383,8 @@ class DB:
         
 #insert##########################################################################################
     def insert(self,table_name,new_data):
-        pass
+        if not self.validate(table_name,new_data):
+            self.error += "データ登録エラー:<<DB.insert()\n"
+            return False
+        
+        return True
