@@ -273,14 +273,23 @@ class DB:
             self.error += f"データ検証エラー：<<DB.validate()\n新規データ数:{len(new_data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
             return False
         #type_check
+        err = ""
         primary_key = self.info[table_name]["primary_key"]
         is_autoincrement = self.info[table_name]["autoincrement"]
         for i,col in enumerate(cols):
-            if col == primary_key:
-                pass
-            if self.info[table_name][col]["type"] == "integer":
-                try:
-                    num = int(new_data[i])
+            if col == primary_key and is_increment:
+                if new_data[i] != None and not isinstance(new_data[i],int):
+                    err += f"typeエラー:プライマリー列{col}はNoneもしくはint型のデータを設定してください。\n"                
+            else:
+                if self.info[table_name][col]["type"] == "integer":
+                    if not isinstance(new_data[i],int):
+                        err += f"typeエラー:列{col}は整数型のデータを設定してください。\n"
+                elif self.info[table_name][col]["type"] == "text":
+                    if not isinstance(new_data[i],str):
+                        err += f"typeエラー:列{col}は文字列型のデータを設定してください。\n"
+                elif self.info[table_name][col]["type"] == "date":
+                    if not isinstance(new_data[i],str):
+                        err += f"typeエラー:列{col}は文字列型のデータを設定してください。\n"
 #backup##################################################################################
     def backup(self):
         try:
