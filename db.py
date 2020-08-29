@@ -183,18 +183,96 @@ class DB:
             return False
         
     def create_sub_table(self,table_name,col_list,view_name_list,type_list,empty_list,relational_col_list,primary_key,autoincrement=True):
-        pass
+        #すでに存在するテーブル名かチェック
+        sql_str = f"select count(*) from sqlite_master where type = 'table' and name = '{table_name}'"
+        self.cursor.execute(sql_str)
+        if self.cursor.fetchone()[0] != 0:
+            self.error += f"create tableエラー:<<DB.create_sub_table()\n{table_name}テーブルはすでに存在します。\n"
+            return False
+        #列数と型数が一致しているかチェック
+        if not(len(col_list) == len(type_list) == len(view_name_list) == len(empty_list)):
+            self.error += f"create tableエラー:<<DB.create_sub_table()\n列数、型数、表示列名数、null許容数が異なります。\n"
+            return False
+        #型が決められた型かチェック
+        tps = ["integer","text","date"]
+        for tp in type_list:
+            if tp not in tps:
+                self.error += f"create tableエラー:<<DB.create_sub_table()\n型{tp}は無効な型名です。有効な値は'integer' or 'text' or 'date'です。\n"
+                return False
+        #empty_listが正しいデータかチェック(null or not_null)
+        for emp in empty_list:
+            if emp != "null" and emp != "not_null":
+                self.error += f"create tableエラー:<<DB.create_sub_table()\nempty_list内の値{emp}は無効な値です。有効な値は'null' or 'not_null'です。\n"
+                return False
+        #primary_keyがcol_listにあるかチェック
+        if primary_key not in col_list:
+            self.error += f"create tableエラー:<<DB.create_sub_table()\nプライマリーキー{primary_key}は列リストに存在しません。\n"
+            return False
+        #autoincrementのチェック
+        if autoincrement and type_list[col_list.index(primary_key)] != "integer":
+            self.error += f"create tableエラー:<<DB.create_sub_table()\nプライマリーキー{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
+            return False
 
+        col_str = ""
+        for i,col in enumerate(col_list):
+            if col == primary_key:
+                if autoincrement:
+                    col_str += f"{col} {type_list[i]} primary key autoincrement,"
+                else:
+                    col_str += f"{col} {type_list[i]} primary key,"
+            else:
+                col_str += f"{col} {type_list[i]},"
+        
+        sql_str = f"create table {table_name}({col_str.rstrip(',')})"
+         try:
+            #バックアップ
+            if not self.backup():
+                self.error += "<<DB.create_main_table()"
+                return False
+
+            #テーブル作成
+            self.cursor.execute(sql_str)
+            self.conn.commit()
+            self.info["tables"].append(table_name)
+            self.info["sub_tables"].append(table_name)
+            self.info[table_name] = {}
+            self.info[table_name]["create_sql"] = sql_str
+            self.info[table_name]["cols"] = col_list
+            for i,col in enumerate(col_list):
+                self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
+            self.msg += f"{table_name}テーブル(サブテーブル)を作成しました。\n"
+            
+            #setting.json保存
+            jsn_str = json.dumps(self.info_all,ensure_ascii=False,indent=4)
+            with open(self.setting_path,"w",encoding="utf-8") as f:
+                f.write(jsn_str)
+            return True
+        except Exception as ex:
+            self.error += f"create tableエラー:<<DB.create_sub_table()\n{table_name}テーブルの作成に失敗しました。\n{str(ex)}"
+            return False
 #check###################################################################################
     def is_exist_table(self,table_name):
         sql_str = f"select count(*) from sqlite_master where type = 'table' and name = '{table_name}'"
         self.cursor.execute(sql_str)
         if self.cursor.fetchone()[0] == 0:
-            self.error +=f"table名エラー:<<DB.is_exist_table()\n{table_name}というテーブルは存在しません。"
+            self.error +=f"table名エラー:<<DB.is_exist_table()\n{table_name}というテーブルは存在しません。\n"
             return False
         else:
             return True
-
+    #途中
+    def validate(self,table_name,data):
+        if not self.is_exist_table(table_name):
+            self.error += "<<DB.validate()\n"
+            return False
+        cols = self.info[table_name]["cols"]
+        if len(cols) != len(new_data):
+            self.error += f"insertエラー：<<DB.validate()\n新規データ数:{len(new_data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
+            return False
+        #type_check
+        for i,col in enumerate(cols):
+            if self.info[table_name][col]["type"] == "integer":
+                try:
+                    num = int(new_data[i])
 #backup##################################################################################
     def backup(self):
         try:
@@ -210,4 +288,14 @@ class DB:
 
         except Exception as ex:
             self.error += "dbファイル/settingファイルバックアップエラー:<<DB.back_up()\n"+str(ex)
+            return False
+        
+#insert##########################################################################################
+    def insert(self,table_name,new_data):
+        if not self.is_exist_table(table_name):
+            self.error += "<<DB.insert()"
+            return False
+        cols = self.info[table_name]["cols"]
+        if len(cols) != len(new_data):
+            self.error += f"insertエラー：<<DB.insert()\n新規データ数:{len(new_data)}が規定のデータ数:{len(cols)}と一致しません。\n"
             return False
