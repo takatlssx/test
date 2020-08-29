@@ -292,7 +292,7 @@ class DB:
                     pass
         #null_check
         for i,col in enumerate(cols):
-            pass
+            if self.info[table_name][col]["empty"] == "not_null" and (new_data[i] == None or new_data[i] == "") and col != primary_key:
 #backup##################################################################################
     def backup(self):
         try:
