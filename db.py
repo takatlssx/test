@@ -135,9 +135,8 @@ class DB:
             self.error += f"create tableエラー:<<DB.create_main_table()\n列数、型数、表示列名数、null許容数が異なります。\n"
             return False
         #型が決められた型かチェック
-        tps = ["integer","text","date"]
         for tp in type_list:
-            if tp not in tps:
+            if tp not in ["integer","text","date"]:
                 self.error += f"create tableエラー:<<DB.create_main_table()\n型{tp}は無効な型名です。有効な値は'integer' or 'text' or 'date'です。\n"
                 return False
         #empty_listが正しいデータかチェック(null or not_null)
@@ -191,6 +190,7 @@ class DB:
             self.info["main_table"] = table_name
             self.info[table_name] = {}
             self.info[table_name]["create_sql"] = sql_str
+            #insert_sql_col_str = ",".join(["?" for i in range(len(col_list))])
             insert_sql_col_str = ""
             for col in col_list:
                 insert_sql_col_str += "?,"
@@ -199,6 +199,7 @@ class DB:
             self.info[table_name]["primary_key"] = primary_key
             self.info[table_name]["autoincrement"] = autoincrement
             for i,col in enumerate(col_list):
+                #relational_table =  col if col in relational_col_list else None
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(メインテーブル)を作成しました。\n"
         except Exception as ex:
