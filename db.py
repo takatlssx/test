@@ -80,7 +80,9 @@ class DB:
             return False
 
 #create##################################################################################
+    #データベースファイル作成メソッド
     def create_db(self,db_name):
+        #データベースフォルダ作成
         try:
             db_dir = self._root_dir + db_name
             if not os.path.isdir(db_dir):
@@ -88,8 +90,18 @@ class DB:
                 os.makedirs(db_dir + "/backup")
                 os.makedirs(db_dir + "/csv")
                 os.makedirs(db_dir + "/image")
+        except Exception as ex:
+            self.error += f"データベース作成エラー:DB.create_db()\nデータベースフォルダの作成に失敗しました。\n{str(ex)}"
+            return False
+        #データベースに接続（自動で作成される）
+        try:
             self.conn = sqlite3.connect(db_dir + "/" + self.db_name + ".db")
-            
+            self.cursor = self.conn.cursor()
+        except:
+            self.error += f"データベース作成エラー:DB.create_db()\nデータベースファイルの作成・接続に失敗しました。\n{str(ex)}"
+            return False
+        #設定情報を処理
+        tyr:
             self.info["db_name"] = self.db_name
             self.info["db_path"] = db_dir+"/"+self.db_name+".db"
             self.info["backup_dir"] = db_dir+"/backup/"
@@ -102,22 +114,21 @@ class DB:
             jsn_str = json.dumps(self.info,ensure_ascii=False,indent=4)
             with open(self.setting_path,"w",encoding="utf-8") as f:
                 f.write(jsn_str)
-
-            return True
         except Exception as ex:
-            self.error += "データベース作成エラー:DB.create_db()\nデータベース/setting.jsonの作成に失敗しました。"+str(ex)
+            self.error += f"データベース作成エラー:DB.create_db()\nデータベース設定情報・setting.jsonの作成に失敗しました。{str(ex)}"
             return False
+        
+        return True
 
+    #メインテーブル作成メソッド
     def create_main_table(self,table_name,col_list,view_name_list,type_list,empty_list,relational_col_list,primary_key,autoincrement=True):
         #すでに存在するテーブル名かチェック
-        sql_str = f"select count(*) from sqlite_master where type = 'table' and name = '{table_name}'"
-        self.cursor.execute(sql_str)
-        if self.cursor.fetchone()[0] != 0:
+        if self.is_exist_table(table_name):
             self.error += f"create tableエラー:<<DB.create_main_table()\n{table_name}テーブルはすでに存在します。\n"
             return False
-        #status引数がmainかsubかチェック
+        #mainテーブルが既に設定されていないかチェック
         if self.info["main_table"] != "" and self.info["main_table"] != None:
-            self.error += f"create tableエラー:<<DB.create_main_table()\nすでにmainテーブルが設定されています、mainテーブルはdbに１つのみです。\n"
+            self.error += f"create tableエラー:<<DB.create_main_table()\nすでにmainテーブル:{self.info['main_table']}が設定されています、mainテーブルはdbに１つのみです。\n"
             return False
         #列数と型数が一致しているかチェック
         if not(len(col_list) == len(type_list) == len(view_name_list) == len(empty_list)):
@@ -313,7 +324,6 @@ class DB:
         sql_str = f"select count(*) from sqlite_master where type = 'table' and name = '{table_name}'"
         self.cursor.execute(sql_str)
         if self.cursor.fetchone()[0] == 0:
-            self.error +=f"table名エラー:<<DB.is_exist_table()\n{table_name}というテーブルは存在しません。\n"
             return False
         else:
             return True
