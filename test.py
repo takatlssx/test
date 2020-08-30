@@ -23,8 +23,10 @@
                     err += f"typeエラー:プライマリー列{col}はNoneもしくはint型のデータを設定してください。\n"                
             else:
                 if self.info[table_name][col]["type"] == "integer":
-                    if not isinstance(data[i],int):
-                        err += f"typeエラー:列{col}は整数型のデータを設定してください。\n"
+                    try:
+                        data[i] = int(data[i])
+                    except Exception as ex:
+                         err += f"typeエラー:列{col}は整数型のデータを設定してください。\n"
                 elif self.info[table_name][col]["type"] == "text":
                     if not isinstance(data[i],str):
                         err += f"typeエラー:列{col}は文字列型のデータを設定してください。\n"
