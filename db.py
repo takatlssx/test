@@ -164,7 +164,6 @@ class DB:
         
         return True
 
-    #途中
     def export_csv(self,table_name):
         err = "csvエクスポートエラー:<<export_csv()\n"
         if not self.is_exist_table(table_name):
@@ -468,7 +467,7 @@ class DB:
         if not isinstance(data,tuple) and not isinstance(data,list):
             self.error += f"{err}新規データはlist型もしくはtuple型データを指定してください。\n"
             return False
-        #新規データリストのデータ数が正しい数かチェック
+        #データリストのデータ数が正しい数かチェック
         cols = self.info[table_name]["cols"]
         if len(cols) != len(data):
             self.error += f"{err}新規データ数:{len(data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
@@ -479,8 +478,11 @@ class DB:
         is_autoincrement = self.info[table_name]["autoincrement"]
         for i,col in enumerate(cols):
             if col == primary_key and is_autoincrement:
-                if data[i] != None and not isinstance(data[i],int):
-                    err += f"typeエラー:プライマリー列{col}はNoneもしくはint型のデータを設定してください。\n"                
+                if data[i] != None:
+                    try:
+                        num = int(data[i])
+                    except Exception as ex:
+                        err += f"typeエラー:プライマリー列{col}はNoneもしくは整数型のデータを設定してください。\n"                
             else:
                 if self.info[table_name][col]["type"] == "integer":
                     try:
@@ -602,6 +604,68 @@ class DB:
                         return False
         return True
 
+#update##########################################################################################
+    def update(self,table_name,id,data):
+        err = "データ変更エラー:<<update()\n"
+        if not self.validate(table_name,data):
+            self.error += err
+            return False
+        data = tuple(data)
+        old_data = self.select_by_id(table_name,id)
+        if not old_data:
+            self.error += err
+            return False
+        
+        change_col = []
+        change_val = []
+        old_val = []
+
+        for i,od in enumerate(old_data):
+            if str(od) != str(data[i]):
+                change_col.append(self.info[table_name]["cols"][i])
+                change_val.append(data[i])
+                old_val.append(od)
+        
+        if len(change_val) == 0:
+            self.error += f"{err}変更されたデータがありません。\n"
+            return False
+        
+        set_str = ""
+        self.msg = f"{table_name}テーブルのid:{id}のデータを以下の通り更新しました。\n"
+        for i,col in enumerate(change_col):
+            set_str += f"{col} = '{str(change_val[i])}',"
+            self.msg += f"列:{col} '{old_val[i]}' >> '{change_val[i]}'\n"
+        
+        sql_str = f"update {table_name} set {set_str.rstrip(',')} where id = {id}"
+        try:
+            self.cursor.execute(sql_str)
+            self.conn.commit()
+            return True
+        except Exception as ex:
+            self.error += f"{err}{table_name}テーブルのid:{id}のデータ変更に失敗しました。\n{str(ex)}\n"
+            return False
+
+    def update_main_table(self,id,data):
+        err = "メインテーブルデータ変更エラー:<<update_main_table()\n"
+        if not self.backup("updatemaintable"):
+            self.error += err
+            return False
+        main_table_name = self.info["main_table"]
+        if not self.update(main_table_name,id,data):
+            self.error += err
+            return False
+        
+        #subtable
+        for rltbl in self.info["relational_tables"]:
+            vals = data[self.info[main_table_name]["cols"].index(rltbl)].split("/")
+            for val in vals:
+                dt = self.select(rltbl,[rltbl],[val])
+                if len(dt) == 0:
+                    if not self.insert(rltbl,(None,val)):
+                        self.error += err
+                        return False
+        return True
+
 #select/get_data#################################################################################
     def get_data(self,table_name,select_cols=["*"]):
         if not self.is_exist_table(table_name):
@@ -695,4 +759,4 @@ class DB:
             self.error += f"{err}id:'{id}'のデータは見つかりませんでした。\n"
             return False
         else:
-            return data
+            return data[0]
