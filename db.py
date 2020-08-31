@@ -39,14 +39,14 @@ class DB:
             self.create_db(self.db_name)
         else:
             if not self.get_setting():
-                self.error += "connectエラー:<<DB.connect()\n"
+                self.error += "connectエラー:<<connect()\n"
                 return False
             try:
                 self.conn = sqlite3.connect(self.info["db_path"])
                 self.cursor = self.conn.cursor()
                 return True
             except Exception as ex:
-                self.error +="connectエラー:<<DB.connect()\nデータベースを開けませんでした\n"+str(ex)
+                self.error +="connectエラー:<<connect()\nデータベースを開けませんでした\n"+str(ex)
                 return False
     
     def close(self):
@@ -55,13 +55,13 @@ class DB:
     
     def get_setting(self):
         if not os.path.exists(self.setting_path):
-            self.error +=f"データベース設定取得エラー:<<DB.get_setting()\nデータベース設定ファイル{self.setting_path}が見つかりませんでした。"
+            self.error +=f"データベース設定取得エラー:<<get_setting()\nデータベース設定ファイル{self.setting_path}が見つかりませんでした。"
             return False
         try:
             with open(self.setting_path,"r",encoding="utf-8") as f:
                 self.info = json.load(f)
         except Exception as ex:
-            self.error +="データベース設定取得エラー:<<DB.get_setting()\nデータベース設定を取得できませんでした。\n"+str(ex)
+            self.error +="データベース設定取得エラー:<<get_setting()\nデータベース設定を取得できませんでした。\n"+str(ex)
             return False
 
     def save_setting(self):
@@ -71,7 +71,7 @@ class DB:
             shutil.copyfile(self.setting_path, dest)
             self.latest_backup_setting_file = dest
         except Exception as ex:
-            self.error += f"設定保存エラー：<< DB.save_setting()\nsetting.jsonをバックアップできませんでした。\n{str(ex)}\n"
+            self.error += f"設定保存エラー：<< save_setting()\nsetting.jsonをバックアップできませんでした。\n{str(ex)}\n"
             return False
         #現在のself.infoをsetting.jsonに書き込み
         try:
@@ -80,13 +80,13 @@ class DB:
                 f.write(setting_str)
             return True
         except Exception as ex:
-            self.error += f"設定保存エラー：<< DB.save_setting()\nsetting.jsonへの設定情報の書き込みに失敗しました。\n{str(ex)}\n"
+            self.error += f"設定保存エラー：<< save_setting()\nsetting.jsonへの設定情報の書き込みに失敗しました。\n{str(ex)}\n"
             return False
 
 #utility###################################################################################
     def get_data_count(self,table_name):
         if not self.is_exist_table(table_name):
-            self.error += f"データ件数取得エラー:<<DB.get_data_count()\n{table_name}というテーブルは存在しません。\n"
+            self.error += f"データ件数取得エラー:<<get_data_count()\n{table_name}というテーブルは存在しません。\n"
             return False
         try:
             sql_str = "select count(*) from "+table_name
@@ -94,7 +94,7 @@ class DB:
             result = self.cursor.fetchall()
             return result[0][0]
         except Exception as ex:
-            self.error += f"データ件数取得エラー:<<DB.get_data_count()\n{table_name}テーブルからデータ件数を取得できませんでした。\n{str(ex)}\n"
+            self.error += f"データ件数取得エラー:<<get_data_count()\n{table_name}テーブルからデータ件数を取得できませんでした。\n{str(ex)}\n"
             return False
     
     def get_columns(self,table_name):
@@ -102,12 +102,12 @@ class DB:
             self.cursor.execute("select * from " + table_name)
             return [description[0] for description in self.cursor.description]
         else:
-            self.error += f"{table_name}というテーブルは存在しません。<<DB.get_columns()\n"
+            self.error += f"列リスト取得エラー:<<get_columns()\n{table_name}というテーブルは存在しません\n"
             return False
     
     def copy_table(self,src_db,src_table_name,dest_table_name):
         src_db_data = None
-        err = "データベースコピーエラー:<<DB.copy_db()\n"
+        err = "データベースコピーエラー:<<copy_table()\n"
         if not os.path.exists(src_db):
             self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}が存在しません。\n"
             return False
@@ -132,7 +132,7 @@ class DB:
             return False
     
     def import_csv(self,csv_path,table_name):
-        err = "csvインポートエラー:<<DB.import_csv()\n"
+        err = "csvインポートエラー:<<import_csv()\n"
         if not os.path.exists(csv_path):
             self.error += f"{err}csv:{csv_path}が見つかりませんでした。\n"
             return False
@@ -164,7 +164,7 @@ class DB:
 
     #途中
     def export_csv(self,table_name):
-        err = "csvエクスポートエラー:<<DB.export_csv()\n"
+        err = "csvエクスポートエラー:<<export_csv()\n"
         if not self.is_exist_table(table_name):
             self.error += f"{err}{table_name}テーブルは存在しません。\n"
             return False
@@ -175,6 +175,7 @@ class DB:
 #create###########################################################################################
     #データベースファイル作成メソッド
     def create_db(self,db_name):
+        err = "データベース作成エラー:<<create_db()\n"
         #データベースフォルダ作成
         try:
             db_dir = self._root_dir + db_name
@@ -184,14 +185,14 @@ class DB:
                 os.makedirs(db_dir + "/csv")
                 os.makedirs(db_dir + "/image")
         except Exception as ex:
-            self.error += f"データベース作成エラー:DB.create_db()\nデータベースフォルダの作成に失敗しました。\n{str(ex)}"
+            self.error += f"{err}データベースフォルダの作成に失敗しました。\n{str(ex)}"
             return False
         #データベースに接続（自動で作成される）
         try:
             self.conn = sqlite3.connect(db_dir + "/" + self.db_name + ".db")
             self.cursor = self.conn.cursor()
         except:
-            self.error += f"データベース作成エラー:DB.create_db()\nデータベースファイルの作成・接続に失敗しました。\n{str(ex)}"
+            self.error += f"{err}データベースファイルの作成・接続に失敗しました。\n{str(ex)}"
             return False
         #設定情報を処理
         try:
@@ -208,12 +209,12 @@ class DB:
             with open(self.setting_path,"w",encoding="utf-8") as f:
                 f.write(jsn_str)
         except Exception as ex:
-            self.error += f"データベース作成エラー:DB.create_db()\nデータベース設定情報・setting.jsonの作成に失敗しました。{str(ex)}"
+            self.error += f"{err}データベース設定情報・setting.jsonの作成に失敗しました。{str(ex)}"
             return False
         return True
 
     def create_main_table(self,table_name,col_list,view_name_list,type_list,empty_list,relational_col_list,primary_key,autoincrement=True):
-        err = "メインテーブル作成エラー:<<DB.create_main_table()\n"
+        err = "メインテーブル作成エラー:<<create_main_table()\n"
         #すでに存在するテーブル名かチェック
         if self.is_exist_table(table_name):
             self.error += f"{err}{table_name}テーブルはすでに存在します。\n"
@@ -329,7 +330,7 @@ class DB:
         return True
         
     def create_sub_table(self,table_name,col_list,view_name_list,type_list,empty_list,primary_key,autoincrement=True):
-        err = "サブテーブル作成エラー:<<DB.create_sub_table()\n"
+        err = "サブテーブル作成エラー:<<create_sub_table()\n"
         #すでに存在するテーブル名かチェック
         if self.is_exist_table(table_name):
             self.error += f"{err}{table_name}テーブルはすでに存在します。\n"
@@ -418,30 +419,31 @@ class DB:
         if not self.is_exist_table(table_name):
             return False
         err = ""
+        #col_list = self.get_columns(table_name)
         for col in cols:
             if col not in self.info[table_name]["cols"] and col != "*":
                 err += f"列名エラー:'{col}'という列は存在しません。\n"
         if err != "":
-            self.error += err + "<<DB.is_exist_column()\n"
+            self.error += err + "<<is_exist_column()\n"
             return False
         return True
 
     def validate(self,table_name,data):
+        err = "データ検証エラー：<<validate()\n"
         #テーブル名チェック
         if not self.is_exist_table(table_name):
-            self.error +=f"データ検証エラー：<<DB.validate()\ntable名エラー:<<DB.is_exist_table()\n{table_name}というテーブルは存在しません。\n"
+            self.error +=f"{err}{table_name}というテーブルは存在しません。\n"
             return False
         #引数のデータがlist or tuple かチェック
         if not isinstance(data,tuple) and not isinstance(data,list):
-            self.error += f"データ検証エラー：<<DB.validate()\n新規データはlist型もしくはtuple型データを指定してください。\n"
+            self.error += f"{err}新規データはlist型もしくはtuple型データを指定してください。\n"
             return False
         #新規データリストのデータ数が正しい数かチェック
         cols = self.info[table_name]["cols"]
         if len(cols) != len(data):
-            self.error += f"データ検証エラー：<<DB.validate()\n新規データ数:{len(data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
+            self.error += f"{err}新規データ数:{len(data)}がテーブル規定のデータ数:{len(cols)}と一致しません。\n"
             return False
         
-        err = "データ検証エラー：<<DB.validate()\n"
         #type_check
         primary_key = self.info[table_name]["primary_key"]
         is_autoincrement = self.info[table_name]["autoincrement"]
@@ -468,7 +470,7 @@ class DB:
             if self.info[table_name][col]["empty"] == "not_null" and (data[i] == None or data[i] == "") and col != primary_key:
                 err += f"nullエラー:列{col}はnullは禁止です。\n"
         
-        if err != "データ検証エラー：<<DB.validate()\n":
+        if err != "データ検証エラー：<<validate()\n":
             self.error += err
             return False
         else:
@@ -488,7 +490,7 @@ class DB:
             return True
 
         except Exception as ex:
-            self.error += "dbファイル/settingファイルバックアップエラー:<<DB.back_up()\n"+str(ex)
+            self.error += "db/settingバックアップエラー:<<backup()\n"+str(ex)
             return False
 
     def rollback(self):
@@ -502,8 +504,9 @@ class DB:
 
 #insert##########################################################################################
     def insert(self,table_name,new_data):
+        err = "データ登録エラー:<<insert()\n"
         if not self.validate(table_name,new_data):
-            self.error += f"{table_name}テーブル・データ登録エラー:<<DB.insert()\n"
+            self.error += err
             return False
         new_data = tuple(new_data)
         try:
@@ -511,7 +514,7 @@ class DB:
             self.cursor.execute(sql_str,new_data)
             self.conn.commit()
         except Exception as ex:
-            self.error += f"データ登録エラー:<<DB.insert()\n{table_name}テーブルへの新規データ登録に失敗しました。\n{str(ex)}"
+            self.error += f"{err}{table_name}テーブルへの新規データ登録に失敗しました。\n{str(ex)}"
             return False
         self.msg += table_name+"テーブルに以下のデータを登録しました。\n"
         for i in range(len(new_data)):
@@ -519,19 +522,20 @@ class DB:
         return True
     
     def insert_many(self,table_name,new_data_2d):
+        err = "データ登録エラー:<<insert_many()\n"
         if not self.backup("insertmany"+table_name):
-            self.error += f"<<DB.insert_many()\n"
+            self.error += err
             return False
         for i,data in enumerate(new_data_2d):
             if not self.validate(table_name,data):
-                self.error += "データ登録エラー:<<DB.insert()\n"
+                self.error +=err
                 return False
             data = tuple(data)
             try:
                 sql_str = self.info[table_name]["insert_sql"]
                 self.cursor.execute(sql_str,data)
             except Exception as ex:
-                self.error += f"データ登録エラー:<<DB.insert_many()\n{i}個目の新規データのinsertに失敗しました。\n{str(ex)}"
+                self.error += f"{err}{i}個目の新規データのinsertに失敗しました。\n{str(ex)}"
                 return False
         try:
             self.conn.commit()
@@ -539,12 +543,12 @@ class DB:
             return True
         except Exception as ex:
             self.rollback()
-            self.error += f"データ登録エラー:<<DB.insert_many()\nデータベースのコミットに失敗しました。\n{str(ex)}"
+            self.error += f"{err}データベースのコミットに失敗しました。\n{str(ex)}"
             return False
     
     #途中
     def insert_main_table(self,new_data):
-        err = "メインテーブルデータ登録エラー:<<DB.insert_main_table()\n"
+        err = "メインテーブルデータ登録エラー:<<insert_main_table()\n"
         main_table_name = self.info["main_table"]
         
         #backup
@@ -571,14 +575,14 @@ class DB:
 #select/get_data#################################################################################
     def get_data(self,table_name,select_cols):
         if not self.is_exist_table(table_name):
-            self.error += f"データ取得エラー:<<DB.get_data()\n{table_name}というテーブルは存在しません。\n"
+            self.error += f"データ取得エラー:<<get_data()\n{table_name}というテーブルは存在しません。\n"
             return False
         try:
             sql_str = f"select {','.join(select_cols)} from {table_name}"
             self.cursor.execute(sql_str)
             return self.cursor.fetchall()
         except Exception as ex:
-            self.error += f"データ取得エラー:<<DB.get_data()\n{table_name}テーブルからデータを取得できませんでした。\n{str(ex)}\n"
+            self.error += f"データ取得エラー:<<get_data()\n{table_name}テーブルからデータを取得できませんでした。\n{str(ex)}\n"
             return False
     
     #selectのsqlを作成メソッド
@@ -596,29 +600,30 @@ class DB:
                     condition_list.append(f"({col}{param.format(words[i])})")
             sql_str = f"select {view_cols_str} from {table_name} where {and_or.join(condition_list)}"
         except Exception as ex:
-            self.error += "select_sql作成エラー:<< DB.create_sql_select()\n"+str(ex)
+            self.error += "select_sql作成エラー:<< create_sql_select()\n"+str(ex)
             return False
         return sql_str
     
     #selectメソッド
     def select(self,table_name,select_cols,words,and_or="or",match="partial",view_cols=["*"]):
+        err = "データセレクトエラー：<<select()\n"
         if not self.is_exist_table(table_name):
-            self.error +=f"データセレクトエラー：<<DB.select()\ntable名エラー:<<DB.is_exist_table()\n{table_name}というテーブルは存在しません。\n"
+            self.error +=f"{err}{table_name}というテーブルは存在しません。\n"
             return False
         if not self.is_exist_column(table_name,select_cols):
-            self.error +=f"データセレクトエラー：<<DB.select()\n"
+            self.error += err
             return False
         if not self.is_exist_column(table_name,view_cols):
-            self.error +=f"データセレクトエラー：<<DB.select()\n"
+            self.error += err
             return False 
         if len(select_cols) != len(words):
-            self.error += "データセレクトエラー:<<DB.select()\n指定された列リストとワードリストの要素数が一致しません。\n"
+            self.error += f"{err}指定された列リストとワードリストの要素数が一致しません。\n"
             return False
         if and_or != "and" and and_or != "or":
-            self.error += f"データセレクトエラー:<<DB.select()\n組み合わせ演算子はandかorのみ有効です{and_or}は無効な演算子です。\n"
+            self.error += f"{err}組み合わせ演算子はandかorのみ有効です、{and_or}は無効な演算子です。\n"
             return False
         if match != "perfect" and match != "partial":
-            self.error += f"データセレクトエラー:<<DB.select()\n一致方式はpartialかperfectのみ有効です{match}は無効な方式です。\n"
+            self.error += f"{err}一致方式はpartialかperfectのみ有効です、{match}は無効な方式です。\n"
             return False
 
         sql_str = self.create_select_sql(table_name,select_cols,words,and_or,match,view_cols)
@@ -628,27 +633,27 @@ class DB:
             self.cursor.execute(sql_str)
             return self.cursor.fetchall()
         except Exception as ex:
-            self.error += f"データセレクトエラー:<<DB.select()\n{table_name}テーブルからのデータセレクトに失敗しました。\n"+str(ex)
+            self.error += f"{err}{table_name}テーブルからのデータセレクトに失敗しました。\n"+str(ex)
             return False
     
     def select_by_id(self,table_name,id):
+        err = "データセレクトエラー:<<select_by_id()\n"
         if not self.is_exist_table(table_name):
-            self.error += f"<<DB.select_by_id()\n{table_name}というテーブルは存在しません。\n"
+            self.error += f"{err}{table_name}というテーブルは存在しません。\n"
             return False
         
         try:
             num = int(id)
         except Exception as ex:
-            self.error += f"データセレクトエラー:<<DB.select_by_id()\nidは整数値を指定してください。\n"
+            self.error += f"{err}idは整数値を指定してください。\n"
             return False
         
         data = self.select(table_name,["id"],[id],"and","perfect")
-
         if data == False:
-            self.error += f"データセレクトエラー:<<DB.select_by_id()\n"
+            self.error += err
             return False
         elif len(data) == 0:
-            self.error += f"データセレクトエラー:<<DB.select_by_id()\nid'{id}'のデータは見つかりませんでした。\n"
+            self.error += f"{err}id:'{id}'のデータは見つかりませんでした。\n"
             return False
         else:
             return data
