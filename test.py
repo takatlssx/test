@@ -26,7 +26,14 @@
             return False
         
         self.conn.commit()
+        
+        src_info["name"] = self.info["name"]
+        src_info["db_path"] = self.info["db_path"]
+        src_info["backup_dir"] = self.info["backup_dir"]
+        src_info["csv_dir"] = self.info["csv_dir"]
+        src_info["image_dir"] = self.info["image_dir"]
         self.info = src_info
+        
         if self.save_setting():
             return True
         else:
