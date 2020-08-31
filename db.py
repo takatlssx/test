@@ -128,13 +128,13 @@ class DB:
             return False
     
     def import_csv(self,csv_path,table_name):
-
+        err = "csvインポートエラー:<<DB.import_csv()\n"
         if not os.path.exists(csv_path):
-            self.error += f"csvインポートエラー:<<DB.import_csv()\ncsv:{csv_path}が見つかりませんでした。\n"
+            self.error += f"{err}csv:{csv_path}が見つかりませんでした。\n"
             return False
         
         if not self.is_exist_table(table_name):
-            self.error += f"csvインポートエラー:<<DB.import_csv()\n{table_name}テーブルは存在しません。\n"
+            self.error += f"{err}{table_name}テーブルは存在しません。\n"
             return False
 
         data_2d = []
@@ -143,28 +143,29 @@ class DB:
                 for row in f:
                     data_2d.append(row.split(','))
         except Exception as ex:
-            self.error += f"csvインポートエラー:<<DB.import_csv()\ncsvファイルをリストに変換できませんでした。\n{str(ex)}"
+            self.error += f"{err}csvファイルをリストに変換できませんでした。\n{str(ex)}"
             return False
 
         if len(data_2d[0]) != len(self.info[table_name]["cols"]):
-            self.error += f"csvインポートエラー:<<DB.import_csv()\ncsvファイルのデータ数と{table_name}テーブルのデータ数が一致しません。\n"
+            self.error += f"{err}csvファイルのデータ数と{table_name}テーブルのデータ数が一致しません。\n"
             return False
         
         #data_2dの最初のデータは列名リストなので削除する
         del data_2d[0]
         if not self.insert_many(table_name,data_2d):
-            self.error += "<<import_csv()\n"
+            self.error += err
             return False
         
         return True
 
     #途中
     def export_csv(self,table_name):
+        err = "csvエクスポートエラー:<<DB.export_csv()\n"
         if not self.is_exist_table(table_name):
-            self.error += f"csvエクスポートエラー:<<DB.export_csv()\n{table_name}テーブルは存在しません。\n"
+            self.error += f"{err}{table_name}テーブルは存在しません。\n"
             return False
         if not os.path.isdir(self.info[table_name]["csv_dir"]):
-            self.error += f"csvエクスポートエラー:<<DB.export_csv()\ncsvフォルダ{self.info[table_name]['csv_dir']}が見つかりませんでした。\n"
+            self.error += f"{err}csvフォルダ{self.info[table_name]['csv_dir']}が見つかりませんでした。\n"
             return False
 
 #create###########################################################################################
@@ -208,47 +209,48 @@ class DB:
         return True
 
     def create_main_table(self,table_name,col_list,view_name_list,type_list,empty_list,relational_col_list,primary_key,autoincrement=True):
+        err = "メインテーブル作成エラー:<<DB.create_main_table()\n"
         #すでに存在するテーブル名かチェック
         if self.is_exist_table(table_name):
-            self.error += f"create tableエラー:<<DB.create_main_table()\n{table_name}テーブルはすでに存在します。\n"
+            self.error += f"{err}{table_name}テーブルはすでに存在します。\n"
             return False
         #status引数がmainかsubかチェック
         if self.info["main_table"] != "" and self.info["main_table"] != None:
-            self.error += f"create tableエラー:<<DB.create_main_table()\nすでにmainテーブルが設定されています、mainテーブルはdbに１つのみです。\n"
+            self.error += f"{err}すでにmainテーブルが設定されています、mainテーブルはdbに１つのみです。\n"
             return False
         #列数と型数が一致しているかチェック
         if not(len(col_list) == len(type_list) == len(view_name_list) == len(empty_list)):
-            self.error += f"create tableエラー:<<DB.create_main_table()\n列数、型数、表示列名数、null許容数が異なります。\n"
+            self.error += f"{err}列数、型数、表示列名数、null許容数が異なります。\n"
             return False
         #型が決められた型かチェック
         tps = ["integer","text","date"]
         for tp in type_list:
             if tp not in tps:
-                self.error += f"create tableエラー:<<DB.create_main_table()\n型{tp}は無効な型名です。有効な値は'integer' or 'text' or 'date'です。\n"
+                self.error += f"{err}型{tp}は無効な型名です。有効な値は'integer' or 'text' or 'date'です。\n"
                 return False
         #empty_listが正しいデータかチェック(null or not_null)
         for emp in empty_list:
             if emp != "null" and emp != "not_null":
-                self.error += f"create tableエラー:<<DB.create_main_table()\nempty_list内の値{emp}は無効な値です。有効な値は'null' or 'not_null'です。\n"
+                self.error += f"{err}empty_list内の値{emp}は無効な値です。有効な値は'null' or 'not_null'です。\n"
                 return False
         #relational_col_listチェック
         if relational_col_list != []:
             for rc in relational_col_list:
                 if rc not in col_list:
-                    self.error += f"create tableエラー:<<DB.create_main_table()\nリレーショナル列{rc}は列リストに存在しません。\n"
+                    self.error += f"{err}リレーショナル列{rc}は列リストに存在しません。\n"
                     return False
         #primary_keyがcol_listにあるかチェック
         if primary_key not in col_list:
-            self.error += f"create tableエラー:<<DB.create_main_table()\nプライマリーキー{primary_key}は列リストに存在しません。\n"
+            self.error += f"{err}プライマリーキー:{primary_key}は列リストに存在しません。\n"
             return False
         #autoincrementのチェック
         if autoincrement and type_list[col_list.index(primary_key)] != "integer":
-            self.error += f"create tableエラー:<<DB.create_main_table()\nプライマリーキー{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
+            self.error += f"{err}プライマリーキー:{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
             return False
 
         #バックアップ
         if not self.backup("createmaintable"):
-            self.error += "<<DB.create_main_table()"
+            self.error += err
             return False
 
         #メインテーブル作成
@@ -269,7 +271,7 @@ class DB:
             self.cursor.execute(sql_str)
             self.conn.commit()
         except Exception as ex:
-            self.error += f"create tableエラー:<<DB.create_main_table()\nメインテーブル({table_name})の作成に失敗しました。\n{str(ex)}"
+            self.error += f"{err}メインテーブル:{table_name}の作成に失敗しました。\n{str(ex)}"
             return False
         #メインテーブル設定情報設定
         try:
@@ -286,7 +288,7 @@ class DB:
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(メインテーブル)を作成しました。\n"
         except Exception as ex:
-            self.error += f"create tableエラー:<<DB.create_main_table()\nメインテーブル({table_name})の設定情報の設定に失敗しました。\n{str(ex)}"
+            self.error += f"{err}メインテーブル:{table_name}の設定情報の設定に失敗しました。\n{str(ex)}"
             return False
 
         #リレーショナルテーブル作成
@@ -297,7 +299,7 @@ class DB:
                     self.cursor.execute(sql_str)
                     self.conn.commit()
                 except Exception as ex:
-                    self.error += f"create tableエラー:<<DB.create_main_table()\nリレーショナルテーブル({relational_table})の作成に失敗しました。\n{str(ex)}"
+                    self.error += f"{err}リレーショナルテーブル({relational_table})の作成に失敗しました。\n{str(ex)}"
                     return False
                 try:
                     self.info["tables"].append(relational_table)
@@ -313,47 +315,48 @@ class DB:
                     self.info[relational_table][relational_table] = {"view_name":view_name_list[col_list.index(relational_table)],"type":"text","empty":"not_null"}
                     self.msg += f"{relational_table}テーブル(サブ・リレーショナルテーブル)を作成しました。\n"
                 except Exception as ex:
-                    self.error += f"create tableエラー:<<DB.create_main_table()\nリレーショナルテーブル({relational_table})の設定情報の設定に失敗しました。\n{str(ex)}"
+                    self.error += f"{err}リレーショナルテーブル({relational_table})の設定情報の設定に失敗しました。\n{str(ex)}"
                     return False  
         #設定情報をsetting.jsonに書き込み
         if not self.save_setting():
-            self.error += f"create tableエラー:<<DB.create_main_table()\n設定情報のsetting.jsonへの書き込みに失敗しました。\n"
+            self.error += f"{err}設定情報のsetting.jsonへの書き込みに失敗しました。\n"
             return False 
         
         return True
         
     def create_sub_table(self,table_name,col_list,view_name_list,type_list,empty_list,primary_key,autoincrement=True):
+        err = "サブテーブル作成エラー:<<DB.create_sub_table()\n"
         #すでに存在するテーブル名かチェック
         if self.is_exist_table(table_name):
-            self.error += f"create tableエラー:<<DB.create_sub_table()\n{table_name}テーブルはすでに存在します。\n"
+            self.error += f"{err}{table_name}テーブルはすでに存在します。\n"
             return False
         #列数と型数が一致しているかチェック
         if not(len(col_list) == len(type_list) == len(view_name_list) == len(empty_list)):
-            self.error += f"create tableエラー:<<DB.create_sub_table()\n列数、型数、表示列名数、null許容数が異なります。\n"
+            self.error += f"{err}列数、型数、表示列名数、null許容数が異なります。\n"
             return False
         #型が決められた型かチェック
         tps = ["integer","text","date"]
         for tp in type_list:
             if tp not in tps:
-                self.error += f"create tableエラー:<<DB.create_sub_table()\n型{tp}は無効な型名です。有効な値は'integer' or 'text' or 'date'です。\n"
+                self.error += f"{err}型{tp}は無効な型名です。有効な値は'integer' or 'text' or 'date'です。\n"
                 return False
         #empty_listが正しいデータかチェック(null or not_null)
         for emp in empty_list:
             if emp != "null" and emp != "not_null":
-                self.error += f"create tableエラー:<<DB.create_sub_table()\nempty_list内の値{emp}は無効な値です。有効な値は'null' or 'not_null'です。\n"
+                self.error += f"{err}empty_list内の値{emp}は無効な値です。有効な値は'null' or 'not_null'です。\n"
                 return False
         #primary_keyがcol_listにあるかチェック
         if primary_key not in col_list:
-            self.error += f"create tableエラー:<<DB.create_sub_table()\nプライマリーキー{primary_key}は列リストに存在しません。\n"
+            self.error += f"{err}プライマリーキー{primary_key}は列リストに存在しません。\n"
             return False
         #autoincrementのチェック
         if autoincrement and type_list[col_list.index(primary_key)] != "integer":
-            self.error += f"create tableエラー:<<DB.create_sub_table()\nプライマリーキー{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
+            self.error += f"{err}プライマリーキー{primary_key}にインクリメントを指定する場合はinteger型を指定してください。\n"
             return False
         
         #バックアップ
         if not self.backup("createsubtable"):
-            self.error += "<<DB.create_main_table()"
+            self.error += err
             return False
         #テーブル作成
         try:
@@ -373,7 +376,7 @@ class DB:
             self.cursor.execute(sql_str)
             self.conn.commit()
         except Exception as ex:
-            self.error += f"create tableエラー:<<DB.create_sub_table()\nサブテーブル({table_name})の作成に失敗しました。\n{str(ex)}"
+            self.error += f"{err}サブテーブル({table_name})の作成に失敗しました。\n{str(ex)}"
             return False
 
         #設定情報処理
@@ -389,11 +392,11 @@ class DB:
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(サブテーブル)を作成しました。\n"
         except Exception as ex:
-            self.error += f"create tableエラー:<<DB.create_sub_table()\n{table_name}テーブルの設定情報の設定に失敗しました。\n{str(ex)}"
+            self.error += f"{err}{table_name}テーブルの設定情報の設定に失敗しました。\n{str(ex)}"
             return False
         #設定情報をsetting.jsonに書き込み
         if not self.save_setting():
-            self.error += f"create tableエラー:<<DB.create_sub_table()\n設定情報のsetting.jsonへの書き込みに失敗しました。\n"
+            self.error += f"{err}設定情報のsetting.jsonへの書き込みに失敗しました。\n"
             return False 
 
         return True
