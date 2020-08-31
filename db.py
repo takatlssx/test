@@ -60,6 +60,7 @@ class DB:
         try:
             with open(self.setting_path,"r",encoding="utf-8") as f:
                 self.info = json.load(f)
+            return True
         except Exception as ex:
             self.error +="データベース設定取得エラー:<<get_setting()\nデータベース設定を取得できませんでした。\n"+str(ex)
             return False
@@ -112,13 +113,13 @@ class DB:
             self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}が存在しません。\n"
             return False
         try:
-            src_conn = sqlite.connection(src_db)
+            src_conn = sqlite3.connect(src_db)
             src_cursor = src_conn.cursor()
             src_cursor.execute("select * from " + src_table_name)
             src_db_data = src_cursor.fetchall()
             src_conn.close()
         except Exception as ex:
-            self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}の{src_table_name}テーブルからデータを取得できませんでした。\n"
+            self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}の{src_table_name}テーブルからデータを取得できませんでした。\n{str(ex)}n"
             return False
         
         if len(src_db_data) == 0:
@@ -126,6 +127,7 @@ class DB:
             return False
         
         if self.insert_many(dest_table_name,src_db_data):
+            self.msg += f"{src_table_name}テーブルを{dest_table_name}にコピーしました。\n"
             return True
         else:
             self.error += f"{err}\n"
@@ -168,8 +170,34 @@ class DB:
         if not self.is_exist_table(table_name):
             self.error += f"{err}{table_name}テーブルは存在しません。\n"
             return False
-        if not os.path.isdir(self.info[table_name]["csv_dir"]):
+        if not os.path.isdir(self.info["csv_dir"]):
             self.error += f"{err}csvフォルダ{self.info[table_name]['csv_dir']}が見つかりませんでした。\n"
+            return False
+        
+        data = []
+        try:
+            data = self.cursor.execute("select * from "+table_name).fetchall()
+        except Exception as ex:
+            self.error += f"{err}{table_name}テーブルのデータ取得に失敗しました。\n{str(ex)}\n"
+            return False
+
+        csv_str = ""
+        csv_str += ",".join(self.info[table_name]["cols"]) + "\n"
+        try:
+            for row in data:
+                csv_str += ",".join([str(val) for val in row]) + "\n"
+        except Exception as ex:
+            self.error += f"{err}データをcsv形式に変換できませんでした。\n{str(ex)}\n"
+            return False
+        
+        try:
+            dest = self.info["csv_dir"] + table_name + ".csv"
+            with open(dest,"w",encoding="utf-8") as f:
+                f.write(csv_str)
+            self.msg += f"{table_name}テーブルのデータをcsvファイル{dest}に出力しました。\n"
+            return True
+        except Exception as ex:
+            self.error += f"{err}データをcsvファイルに書き込みできませんでした。\n{str(ex)}\n"
             return False
 
 #create###########################################################################################
@@ -387,12 +415,14 @@ class DB:
         #設定情報処理
         try:
             self.info["tables"].append(table_name)
-            self.info["sub_tables"].append(table_name)
+            self.info["main_table"] = table_name
             self.info[table_name] = {}
             self.info[table_name]["create_sql"] = sql_str
-            insert_sql_col_str = ",".join(["?" for i in range(len(col_str))])
+            insert_sql_col_str = ",".join(["?" for i in range(len(col_list))])
             self.info[table_name]["insert_sql"] = f"insert into {table_name} values({insert_sql_col_str})"
             self.info[table_name]["cols"] = col_list
+            self.info[table_name]["primary_key"] = primary_key
+            self.info[table_name]["autoincrement"] = autoincrement
             for i,col in enumerate(col_list):
                 self.info[table_name][col] = {"view_name":view_name_list[i],"type":type_list[i],"empty":empty_list[i]}
             self.msg += f"{table_name}テーブル(サブテーブル)を作成しました。\n"
@@ -573,7 +603,7 @@ class DB:
         return True
 
 #select/get_data#################################################################################
-    def get_data(self,table_name,select_cols):
+    def get_data(self,table_name,select_cols=["*"]):
         if not self.is_exist_table(table_name):
             self.error += f"データ取得エラー:<<get_data()\n{table_name}というテーブルは存在しません。\n"
             return False
@@ -585,6 +615,15 @@ class DB:
             self.error += f"データ取得エラー:<<get_data()\n{table_name}テーブルからデータを取得できませんでした。\n{str(ex)}\n"
             return False
     
+    def get_data_all_tables(self):
+        data = {}
+        for tbl in self.info["tables"]:
+            data[tbl] = self.get_data(tbl)
+            if not data[tbl]:
+                self.error += "<<get_data_all_tables()\n"
+                return False
+        return data
+
     #selectのsqlを作成メソッド
     def create_select_sql(self,table_name,select_cols,words,and_or,match,view_cols=["*"]):
         view_cols_str = ",".join(view_cols) if view_cols[0] != "*" else "*"
