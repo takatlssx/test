@@ -101,7 +101,7 @@ class DB:
             self.error += f"{table_name}というテーブルは存在しません。<<DB.get_columns()\n"
             return False
     
-    def copy_db(self,src_db,src_table_name,dest_table_name):
+    def copy_table(self,src_db,src_table_name,dest_table_name):
         src_db_data = None
         err = "データベースコピーエラー:<<DB.copy_db()\n"
         if not os.path.exists(src_db):
@@ -112,12 +112,13 @@ class DB:
             src_cursor = src_conn.cursor()
             src_cursor.execute("select * from " + src_table_name)
             src_db_data = src_cursor.fetchall()
+            src_conn.close()
         except Exception as ex:
-            self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}からデータを取得できませんでした。\n"
+            self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}の{src_table_name}テーブルからデータを取得できませんでした。\n"
             return False
         
         if len(src_db_data) == 0:
-            self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}にデータが存在しませんでした。\n"
+            self.error += f"{err}コピー元に指定されたデータベースファイル{src_db}の{src_table_name}テーブルデータが存在しませんでした。\n"
             return False
         
         if self.insert_many(dest_table_name,src_db_data):
@@ -495,7 +496,7 @@ class DB:
 #insert##########################################################################################
     def insert(self,table_name,new_data):
         if not self.validate(table_name,new_data):
-            self.error += "データ登録エラー:<<DB.insert()\n"
+            self.error += f"{table_name}テーブル・データ登録エラー:<<DB.insert()\n"
             return False
         new_data = tuple(new_data)
         try:
@@ -503,7 +504,7 @@ class DB:
             self.cursor.execute(sql_str,new_data)
             self.conn.commit()
         except Exception as ex:
-            self.error += f"データ登録エラー:<<DB.insert()\n新規データのinsertに失敗しました。\n{str(ex)}"
+            self.error += f"データ登録エラー:<<DB.insert()\n{table_name}テーブルへの新規データ登録に失敗しました。\n{str(ex)}"
             return False
         self.msg += table_name+"テーブルに以下のデータを登録しました。\n"
         for i in range(len(new_data)):
@@ -536,20 +537,29 @@ class DB:
     
     #途中
     def insert_main_table(self,new_data):
-        main_table = self.info["main_table"]
+        err = "メインテーブルデータ登録エラー:<<DB.insert_main_table()\n"
+        main_table_name = self.info["main_table"]
+        
+        #backup
         if not self.backup("insertmaintable"):
-            self.error += f"<< DB.insert_main_table()\n"
+            self.error += err
             return False
-
-        if not self.insert(self.info["main_table"],new_data):
-            self.error += f"<< DB.insert_main_table()\n"
+        #maintable
+        if not self.insert(main_table_name,new_data):
+            self.rollback()
+            self.error += err
             return False
 
         #subtable
         for rltbl in self.info["relational_tables"]:
-            vals = new_data[self.info[main_table]["cols"].index(rltbl)].split("/")
+            vals = new_data[self.info[main_table_name]["cols"].index(rltbl)].split("/")
             for val in vals:
-                pass
+                dt = self.select(rltbl,[rltbl],[val])
+                if len(dt) == 0:
+                    if not self.insert(rltbl,(None,val)):
+                        self.error += err
+                        return False
+        return True
 
 #select/get_data#################################################################################
     def get_data(self,table_name,select_cols):
