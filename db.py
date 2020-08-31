@@ -11,33 +11,37 @@ class DB:
 #constructer/destructer##################################################################
     _root_dir = "/Users/taka/database/"
     def __init__(self,name):
-        #message
+        #メッセージ文字列
         self.error = ""
         self.msg = ""
-        #base_item
+        #データベース名
         self.db_name = name
-        self.setting_path = self._root_dir + name + "/setting.json"
+        #最近のバックアップファイルのパス
         self.latest_backup_db_file = ""
         self.latest_backup_setting_file = ""
-        #connection_object
+        #コネクションオブジェクト
         self.conn = None
         self.cursor = None
-        #setting
+        #設定関係
+        self.setting_path = self._root_dir + name + "/setting.json"
         self.info = {}
-        #connection(get_setting → connect)
+        #コネクションメソッド実行(get_setting → connect)
         self.connect()
         
     def __del__(self):
         self.close()
    
 #connect/close/setting###############################################################
+    #コネクションメソッド>>設定取得→コネクト
     def connect(self):
         #dbファイルがなければ初期状態なので作成
         if not os.path.exists(self._root_dir + self.db_name + "/" + self.db_name + ".db"):
             self.create_db(self.db_name)
         else:
+            if not self.get_setting():
+                self.error += "connectエラー:<<DB.connect()\n"
+                return False
             try:
-                self.get_setting()
                 self.conn = sqlite3.connect(self.info["db_path"])
                 self.cursor = self.conn.cursor()
                 return True
@@ -63,11 +67,11 @@ class DB:
     def save_setting(self):
         #現在のsetting.jsonをバックアップ
         try:
-            dst = self.info["backup_dir"] + "setting{0:%Y%m%d%H%M%S}.backup".format(datetime.datetime.now())
-            shutil.copyfile(self.setting_path, dst)
-            self.latest_backup_setting_file = dst
+            dest = self.info["backup_dir"] + "setting{0:%Y%m%d%H%M%S}.backup".format(datetime.datetime.now())
+            shutil.copyfile(self.setting_path, dest)
+            self.latest_backup_setting_file = dest
         except Exception as ex:
-            self.error += f"設定保存エラー：<< DataBase.save_setting()\nsetting.jsonをバックアップできませんでした。\n{str(ex)}\n"
+            self.error += f"設定保存エラー：<< DB.save_setting()\nsetting.jsonをバックアップできませんでした。\n{str(ex)}\n"
             return False
         #現在のself.infoをsetting.jsonに書き込み
         try:
@@ -76,7 +80,7 @@ class DB:
                 f.write(setting_str)
             return True
         except Exception as ex:
-            self.error += f"設定保存エラー：<< DataBase.save_setting()\nsetting.jsonへの設定情報の書き込みに失敗しました。\n{str(ex)}\n"
+            self.error += f"設定保存エラー：<< DB.save_setting()\nsetting.jsonへの設定情報の書き込みに失敗しました。\n{str(ex)}\n"
             return False
 
 #utility###################################################################################
