@@ -246,7 +246,7 @@ class DB:
             return False
 
         #バックアップ
-        if not self.backup():
+        if not self.backup("createmaintable"):
             self.error += "<<DB.create_main_table()"
             return False
 
@@ -351,7 +351,7 @@ class DB:
             return False
         
         #バックアップ
-        if not self.backup():
+        if not self.backup("createsubtable"):
             self.error += "<<DB.create_main_table()"
             return False
         #テーブル作成
@@ -467,15 +467,15 @@ class DB:
             return True
 
 #backup/rollback##################################################################################
-    def backup(self):
+    def backup(self,method=""):
         try:
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
             #.db
-            self.latest_backup_db_file = self.info["backup_dir"] + self.db_name+"{0:%Y%m%d%H%M%S}.backup".format(now)
+            self.latest_backup_db_file = f"{self.info['backup_dir']}{self.db_name}{now}{method}.backup"
             shutil.copyfile(self.info["db_path"], self.latest_backup_db_file)
 
             #setting.json
-            self.latest_backup_setting_file = self.info["backup_dir"] + "setting{0:%Y%m%d%H%M%S}.backup".format(now)
+            self.latest_backup_setting_file = f"{self.info['backup_dir']}setting{now}{method}.backup"
             shutil.copyfile(self.setting_path, self.latest_backup_setting_file)
             return True
 
@@ -511,7 +511,7 @@ class DB:
         return True
     
     def insert_many(self,table_name,new_data_2d):
-        if not self.backup():
+        if not self.backup("insertmany"+table_name):
             self.error += f"<<DB.insert_many()\n"
             return False
         for i,data in enumerate(new_data_2d):
@@ -537,7 +537,7 @@ class DB:
     #途中
     def insert_main_table(self,new_data):
         main_table = self.info["main_table"]
-        if not self.backup():
+        if not self.backup("insertmaintable"):
             self.error += f"<< DB.insert_main_table()\n"
             return False
 
