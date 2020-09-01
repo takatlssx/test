@@ -25,7 +25,7 @@ class DB:
         #設定関係
         self.setting_path = self._root_dir + name + "/setting.json"
         self.info = {}
-        #コネクションメソッド実行(get_setting → connect)
+        #コネクションメソッド実行(get_setting → connect)method
         self.connect()
         
     def __del__(self):
